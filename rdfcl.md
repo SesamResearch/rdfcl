@@ -42,11 +42,11 @@ Declarations are statements in the model that have related global validation rul
 RDFCL Class Global Validation Rule
 ----------------------------------
 
-Making a resource an instance of rdfcl:Class is a declaration that the resource may be used as a type for other resources.  
+Making a resource an instance of rdfcl:Type is a declaration that the resource may be used as a type for other resources.  
 
 Example:
 
-example:person rdf:a rdfcl:Class
+example:person rdf:type rdfcl:Type
 
 The global validation rule associated with this declaration is describes as follows:
 
@@ -59,6 +59,170 @@ select count(?instance) where { ?instance a ?type . ?type a ?class. ?class not r
 
 RDFCL Property Class Global Validation Rule
 ---
+
+Making a resource an instance of rdfcl:PropertyType is a declaration that the resource may be used as the predicate in a statement.  
+
+Example:
+
+example:age rdf:type rdfcl:PropertyType
+
+The global validation rule associated with this declaration is describes as follows:
+
+No statement may contain a predicate where that predicate is not declared to be an instance of rdfcl:PropertyType.
+
+Formally:
+This constraint is violated when:
+
+select count(?predicate) where { ?instance ?predicate ?type . ?predicate a ?class. ?class not rdfcl:PropertyType } > 0       
+
+
+Class Based Constraint Types
+---
+
+RDFCL introduces the type rdfcl:constraint-type. It is used as the common super type of all constraints defined.
+
+
+Abstract Topic Type Constraint
+----
+
+Is used to indicate that the referenced type must have no instances.
+
+Instances of this constraint must be of type:
+
+rdfcl:abstract-type-constraint
+
+and are described using the following predicates:
+
+predicate				 value
+rdfcl:applies-to-type	 the URI of the type to which the constraint applies.	  
+
+Example:
+
+example:cons1 rdf:type rdfcl:abstract-type-constraint
+example:cons1 applies-to-type example:vehicle
+
+Validation Rule:
+
+For each instance of this constraint type the constraint is violated if:
+
+select count(?instances) where { [[?cons]] rdf:type rdfcl:abstract-type-constraint . 
+								 [[?cons]] applies-to-type ?constrained-type .
+								 ?instance rdf:type ?constrained-type. } > 0
+
+The [[?cons]] is used to indicate the actual constraint instance be validated.
+
+Property Constraint
+---
+
+A property constraint constrains the number of statements connected to a given instance of the specified type with a given predicate.
+
+Instances of this constraint must be of type:
+
+rdfcl:property-constraint
+
+and are described using the following predicates:
+
+Predicate                        Value
+rdfcl:card-min                   indicating the minimum number of occurrences a valid instance shall have
+rdfcl:card-max                   indicating the maximum number of occurrences a valid instance may have
+rdfcl:applies-to-type	         the URI of the type to which the constraint applies
+rdfcl:applies-to-property-type	 the URI of the type to which the constraint applies.	  
+	  
+
+Example:
+
+	Instances of type person must be the subject in exactly one statement where the predicate is birthdate.
+
+	example:cons1 rdf:type rdfcl:property-constraint .
+	example:cons1 rdfcl:card-min 1 .
+	example:cons1 rdfcl:card-max 1 .
+	example:cons1 rdfcl:applies-to-type example:person .
+	example:cons1 rdfcl:applies-to-property-type example:birth-date .
+
+
+For each instance of this constraint type the constraint is violated if:
+
+select count(?cons)
+	[[?cons]] rdfcl:card-max ?max .
+	[[?cons]] rdfcl:card-min ?min
+    {
+		select count(?value as ?property_count) where { [[?cons]] rdf:type rdfcl:property-constraint . 
+									[[?cons]] applies-to-type ?constrained-type .
+									[[?cons]] applies-to-property-type ?constrained-property-type .
+									?instance rdf:type ?constrained-type .
+									?instance ?constrained-property-type ?value .
+								} 
+	}
+	filter (?property_count < ?min && ?property_count > ?max) 
+> 0	
+	
+The [[?cons]] is used to indicate the actual constraint instance be validated.
+
+
+func eval_property_type_constrint(cons):
+	type = store[get(cons, applies-to-type)]
+	ptype = store[get(cons, applies-to-property-type)]
+	min  = ..
+	max = .. 
+	for i in get-related(type, ~rdf:type):
+		if prop-count(i, ptype) > max || prop-count(i, ptype) < min:
+			return false
+	
+	
+Property Data Type Constraint
+---
+
+A property data type constraint constrains the type of the literal object value in statements with a given predicate.
+
+Instances of this constraint must be of type:
+
+rdfcl:property-datatype-constraint
+
+and are described using the following predicates:
+
+Predicate                        Value
+rdfcl:applies-to-property-type	 the URI of the type to which the constraint applies.	
+rdfcl:allowed-data-type          the URI of the data type of which the property must be a value
+
+Example:
+
+	Instances of type person must be the subject in exactly one statement where the predicate is birthdate.
+
+	example:cons1 rdf:type rdfcl:property-constraint .
+	example:cons1 rdfcl:applies-to-property-type example:name .
+	example:cons1 rdfcl:allowed-data-type xsd:string .
+
+For each instance of this constraint type the constraint is violated if:
+	
+select (count ?cons) where {
+	?cons rdfcl:applies-to-property-type ?pt .
+	?cons rdfcl:allowed-data-type ?dt .
+	?s ?pt ?val .
+	filter (not datatype(?val) = ?dt)
+}
+> 0
+
+
+Unique Value Constraint
+---
+
+
+
+Regular Expression Constraint
+---
+
+
+
+ 
+ 
+Extension Constraint Types
+---
+
+Extension constraints are split into two distinct types. Inclusion constraint and Exclusion constraints. Both type evaluate SPARQL user defined queries, and only differ in their interpretation of the result.
+
+
+
+
 
 
 
