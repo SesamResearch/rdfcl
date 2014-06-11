@@ -32,7 +32,9 @@ RDFCL Data Model and Constraint Validation Rules
 
 RDFCL is defined in terms of a number of constraint types and declarations. For each constraint type the required and optional properties of that type are described. RDFCL declarations are global in scope. This means they are not evaluated against a specific constraint but apply to the entire data model instance. 
 
-As well as the data model description of an constraint type the evaluation rule for the type is also provided. These evaluation rules are defined in terms of a context, the constraint and a SPARQL query. The SPARQL query is used as means to unambiguously express the semantics and does not imply that SPARQL must be used when implementing RDFCL.
+As well as the data model description of a constraint type the evaluation rule for the type is also provided. These evaluation rules are defined in terms of a context, the constraint and a SPARQL query. The SPARQL query is used as means to unambiguously express the semantics and does not imply that SPARQL must be used when implementing RDFCL.
+
+When the constraint query is evaluated it is considered a violation of the constaint if a non-empty result is returned.
 
 Declarations
 ------------
@@ -53,9 +55,13 @@ The global validation rule associated with this declaration is describes as foll
 No instance may have a type where that type is not declared to be an instance of rdfcl:Class.
 
 Formally:
-This constraint is violated when:
 
-select count(?instance) where { ?instance a ?type . ?type a ?class. ?class not rdfcl:Class } > 0       
+select * where { ?instance a ?type . 
+					 optional { ?type a ?class . 
+						FILTER(?class = rdfcl:Class)
+					 }
+				 FILTER (!bound(?class)) 
+				 }       
 
 RDFCL Property Class Global Validation Rule
 ---
@@ -142,33 +148,21 @@ Example:
 
 For each instance of this constraint type the constraint is violated if:
 
-select count(?cons)
-	[[?cons]] rdfcl:card-max ?max .
-	[[?cons]] rdfcl:card-min ?min
+select * where {
+	?cons a rdfcl:property-constraint . 
+	?cons rdfcl:card-min ?min .
+	?cons applies-to-type ?class .
+	?cons applies-to-property-type ?property .	
     {
-		select count(?value as ?property_count) where { [[?cons]] rdf:type rdfcl:property-constraint . 
-									[[?cons]] applies-to-type ?constrained-type .
-									[[?cons]] applies-to-property-type ?constrained-property-type .
-									?instance rdf:type ?constrained-type .
-									?instance ?constrained-property-type ?value .
-								} 
+		select count(?value) as ?property_count 
+			where {  
+				?instance a ?class .
+				?instance ?property ?value .
+			} 
 	}
-	filter (?property_count < ?min && ?property_count > ?max) 
-> 0	
-	
-The [[?cons]] is used to indicate the actual constraint instance be validated.
-
-
-func eval_property_type_constrint(cons):
-	type = store[get(cons, applies-to-type)]
-	ptype = store[get(cons, applies-to-property-type)]
-	min  = ..
-	max = .. 
-	for i in get-related(type, ~rdf:type):
-		if prop-count(i, ptype) > max || prop-count(i, ptype) < min:
-			return false
-	
-	
+	filter (?property_count < ?min) 
+}
+			
 Property Data Type Constraint
 ---
 
@@ -194,13 +188,13 @@ Example:
 
 For each instance of this constraint type the constraint is violated if:
 	
-select (count ?cons) where {
+select * where {
+	?cons a rdfcl:property-constraint .
 	?cons rdfcl:applies-to-property-type ?pt .
 	?cons rdfcl:allowed-data-type ?dt .
 	?s ?pt ?val .
-	filter (not datatype(?val) = ?dt)
+	filter (datatype(?val) != ?dt)
 }
-> 0
 
 
 Unique Value Constraint
@@ -218,7 +212,12 @@ Regular Expression Constraint
 Extension Constraint Types
 ---
 
-Extension constraints are split into two distinct types. Inclusion constraint and Exclusion constraints. Both type evaluate SPARQL user defined queries, and only differ in their interpretation of the result.
+Extension constraints are split into two distinct types.
+
+
+
+
+Inclusion constraint and Exclusion constraints. Both type evaluate SPARQL user defined queries, and only differ in their interpretation of the result.
 
 
 
@@ -232,7 +231,6 @@ Schema Entity
 -------------
 
 A schema is a grouping element for a set of constraints.  
-
 
 
 Validation Semantics
