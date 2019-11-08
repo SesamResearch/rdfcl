@@ -1,18 +1,15 @@
-RDF Constraint Language
-------------------------------------------
+# RDF Constraint Language
 
 As with any generic meta-model there comes a need to be able to describe the shape of data for use in introspection and for constraint validation. For example XML has XMLSchema[1] and RelaxNG. While the RDF stack has existing parts that begin to address the need for a data model description language and constraint language, such as OWL[5] and RDFS[6] they are either underpowered or bring with them unwanted semantics. The RDF Constraint Langauge (RDFCL) describes a vocabulary for describing RDF data models and validation semantics for checking the correctness of a given graph in respect to a given data model and a give set of constraints.
 
-Introduction
-------------
+## Introduction
 
 When working with data systems and users want to know several things, they want to have an explicit description of the shape of the data, and they would like to know if a given set of data is valid with respect to the description of a data model. In XML, XMLSchema acts as a description of the shape of the data and along with the validation semantics can be used to check if a given document is valid in respect to a given schema. 
 
 [fix when finished]
 This specification is split into several sections, the first section introduces the overall approach and key concepts. The second section presents the RDF vocabulary used for describing a RDF Schema and the thrid section describes the validation semantics. The paper concludes with a discussion of possible future directions.
 
-Data Modelling and Validation Core Concepts
--------------------------------------------
+## Data Modelling and Validation Core Concepts
 
 Data Modelling and validation can be seen as two sides of the same thing. A data structure description is concerned with unambiguously defining the shape of a data model. For example, to communicate that in a given model there can exist things of type 'person' and that instances of this type must have a property called 'birthdate' whose value is of type datetime. The description is itself a data model that can be viewed, queried and manipulated. A typical use case for this is to create user interfaces for items of a given type. 
 
@@ -27,8 +24,7 @@ The other class of constraints are extension constraints. These constraints cons
 As well as constraints, RDFCL also defines a set of global validation rules. These rules are defined as SPARQL queries that check the validity of an entire graph.
 
 
-RDFCL Data Model and Constraint Validation Rules
--------------------------------------------------
+## RDFCL Data Model and Constraint Validation Rules
 
 RDFCL is defined in terms of a number of constraint types and declarations. For each constraint type the required and optional properties of that type are described. RDFCL declarations are global in scope. This means they are not evaluated against a specific constraint but apply to the entire data model instance. 
 
@@ -36,45 +32,46 @@ As well as the data model description of a constraint type the evaluation rule f
 
 When the constraint query is evaluated it is considered a violation of the constaint if a non-empty result is returned.
 
-Declarations
-------------
+### Declarations
 
 Declarations are statements in the model that have related global validation rules. The two things are indirectly connected. The following sections describe the set of global validation rules. When validating a schema against a model instance these rules are always tested before the schema constraints. 
 
-RDFCL Class Global Validation Rule
-----------------------------------
+### RDFCL Class Global Validation Rule
 
-Making a resource an instance of rdfcl:Type is a declaration that the resource may be used as a type for other resources.  
+Making a resource an instance of rdfcl:Class is a declaration that the resource may be used as the type for other resources.  
 
 Example:
 
-example:person rdf:type rdfcl:Type
+example:person rdf:type rdfcl:Class
 
 The global validation rule associated with this declaration is describes as follows:
 
-No instance may have a type where that type is not declared to be an instance of rdfcl:Class.
+```No instance may have a type where that type is not declared to be an instance of rdfcl:Class.```
 
 Formally:
 
-select * where { ?instance a ?type . 
-					 optional { ?type a ?class . 
+```
+select * where {
+					?instance a ?type . 
+			     	optional { ?type a ?class . 
 						FILTER(?class = rdfcl:Class)
-					 }
-				 FILTER (!bound(?class)) 
-				 }       
+			     	}
+				 	FILTER (!bound(?class)) 
+			   }       
+````
 
-RDFCL Property Class Global Validation Rule
----
+### RDFCL Property Class Global Validation Rule
 
-Making a resource an instance of rdfcl:PropertyType is a declaration that the resource may be used as the predicate in a statement.  
+
+Making a resource an instance of rdfcl:PropertyClass is a declaration that the resource may be used as the predicate in a statement.  
 
 Example:
 
-example:age rdf:type rdfcl:PropertyType
+example:age rdf:type rdfcl:PropertyClass
 
 The global validation rule associated with this declaration is describes as follows:
 
-No statement may contain a predicate where that predicate is not declared to be an instance of rdfcl:PropertyType.
+```No statement may contain a predicate where that predicate is not declared to be an instance of rdfcl:PropertyType.```
 
 Formally:
 This constraint is violated when:
@@ -82,14 +79,12 @@ This constraint is violated when:
 select count(?predicate) where { ?instance ?predicate ?type . ?predicate a ?class. ?class not rdfcl:PropertyType } > 0       
 
 
-Class Based Constraint Types
----
+## Class Based Constraint Types
+
 
 RDFCL introduces the type rdfcl:constraint-type. It is used as the common super type of all constraints defined.
 
-
-Abstract Topic Type Constraint
-----
+### Abstract Topic Type Constraint
 
 Is used to indicate that the referenced type must have no instances.
 
@@ -117,8 +112,7 @@ select count(?instances) where { [[?cons]] rdf:type rdfcl:abstract-type-constrai
 
 The [[?cons]] is used to indicate the actual constraint instance be validated.
 
-Property Constraint
----
+### Property Constraint
 
 A property constraint constrains the number of statements connected to a given instance of the specified type with a given predicate.
 
@@ -128,12 +122,15 @@ rdfcl:property-constraint
 
 and are described using the following predicates:
 
-Predicate                        Value
-rdfcl:card-min                   indicating the minimum number of occurrences a valid instance shall have
-rdfcl:card-max                   indicating the maximum number of occurrences a valid instance may have
-rdfcl:applies-to-type	         the URI of the type to which the constraint applies
-rdfcl:applies-to-property-type	 the URI of the type to which the constraint applies.	  
+
+| Predicate                       |   Value                                                                       | 
+| _______________________________________________________________________________________________________________ |
+| rdfcl:card-min                  |   Indicating the minimum number of occurrences a valid instance shall have    | 
+| rdfcl:card-max                  |  indicating the maximum number of occurrences a valid instance may have       |
+| rdfcl:applies-to-type	          | the URI of the type to which the constraint applies                           |
+| rdfcl:applies-to-property-type  |	 the URI of the type to which the constraint applies.	                      |
 	  
+
 
 Example:
 
